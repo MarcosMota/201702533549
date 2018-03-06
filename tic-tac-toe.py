@@ -1,34 +1,97 @@
 import sys
 import time
 import getopt
+import random
 
-# Verifica se usuario ganhou
-def check_board(board,jogador):
-    profundidade = 0
-    board = ''.join(board)
-    for i in range(len(board)):
-        if board[i] == "_":
-            profundidade = profundidade + 1
+# Retorna os movimentos livres
+def available_moves(board):
+        return [k for k, v in enumerate(board) if v is '_']
 
-    print("Profundidade: {}".format(profundidade))
+def get_squares(board, player):
+        return [k for k, v in enumerate(board) if v == player]
 
-    return ganhou(board,jogador)
+def winner(board):
+    winning_combos = (
+        [0, 1, 2], [3, 4, 5], [6, 7, 8],
+        [0, 3, 6], [1, 4, 7], [2, 5, 8],
+        [0, 4, 8], [2, 4, 6])
 
-# Verifica se o jogador ganhou
-def ganhou(board,jogador):
-    list_vitoria = (
-        [6, 7, 8], [3, 4, 5], [0, 1, 2], [0, 3, 6], [1, 4, 7], [2, 5, 8],
-        [0, 4, 8], [2, 4, 6]
-    )
+    for player in ('X', 'O'):
+        positions = get_squares(board,player)
+        for combo in winning_combos:
+            win = True
+            for pos in combo:
+                if pos not in positions:
+                    win = False
+            if win:
+                return player
+        return '_'
 
-    for vitoria in list_vitoria:
-        if (board[vitoria[0]] == board[vitoria[1]] == board[vitoria[2]] == jogador) :
+def complete(board):
+        if '_' not in [v for v in board]:
             return True
+        if winner(board) != '_':
+            return True
+        return False
 
-    return False
+# Retorna o inimigo
+def get_enemy(player):
+    if player.upper() == 'X':
+        return 'O'
+    return 'X'
 
+def make_move(board, position, player):
+    board[position] = player
 
-# Printa o quadro com as jogas
+def minimax(board, player, alpha, beta):
+        if complete(board):
+            if winner(board) == 'x':
+                return -1
+            elif complete(board) == True and winner(board) is '_':
+                return 0
+            elif winner(board) == 'o':
+                return 1
+        for move in available_moves(board):
+            make_move(board,move, player)
+            val = minimax(board, get_enemy(player), alpha, beta)
+            print(val)
+            make_move(board,move, '_')
+            if player == 'O':
+                if val > alpha:
+                    alpha = val
+                if alpha >= beta:
+                    return beta
+            else:
+                if val < beta:
+                    beta = val
+                if beta <= alpha:
+                    return alpha
+        if player == 'O':
+            return alpha
+        else:
+            return beta
+
+# Determinar o jogo
+def determine(board, player):
+    winners = ('-1', '0', '1')
+    a = -2
+    choices = []
+    if len(available_moves(board)) == 9:
+        return 4
+    for move in available_moves(board):
+        make_move(board,move, player)
+        val = minimax(board, get_enemy(player), -2, 2)
+        make_move(board,move, '_')
+        print( "move:", move + 1, "causes:", winners[val + 1] )
+
+        if val > a:
+            a = val
+            choices = [move]
+        elif val == a:
+            choices.append(move)
+    
+    return random.choice(choices)
+
 def print_board(board):
     board = ''.join(board)
     if len(board) == 9:
@@ -53,25 +116,27 @@ def print_board(board):
 if __name__ == "__main__":
     argv = sys.argv[1:]
     try:
-        jogador = ''
         opts, args = getopt.getopt(argv,"hf:b:v",["first=","board=","verbose="])
         for opt, arg in opts:
             if opt == '-h':
                 print("%s -f x -b ____x____"%(__file__))
                 sys.exit()
             elif opt == '-f':
-                jogador = arg
-
+                first = arg
             elif opt in ("-v", "--verbose"):
+                enemy = get_enemy(first)
+                computer_move = determine(board, enemy)
+                make_move(board,computer_move, enemy)
                 print_board(board)
             elif opt in ("-b", "--board"):
                 if len(arg) == 9:
                     board = list(arg)
                 else:
-                    print("wrong board!")
+                    print("Quadro incorreto. Por favor preencha o quadro corretamete!")
+                    sys.exit()
 
-        if check_board(board,jogador):
-            print("Parabens voce ganhou!!!")
+
+
 
     except getopt.GetoptError:
         print("%s -f x -b ____x____"%(__file__))
